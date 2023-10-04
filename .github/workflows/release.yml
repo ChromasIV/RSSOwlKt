@@ -33,10 +33,3 @@ jobs:
         with:
           name: dist
           path: build/distributions
-
-      - name: Upload distribution artifacts to GitHub Packages
-        uses: actions/upload-package-action@v3
-        with:
-          package-name: dist
-          upload-token: ${{ secrets.GITHUB_TOKEN }}
-

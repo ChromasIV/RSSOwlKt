@@ -36,8 +36,7 @@ class Utils {
 
 
         fun readFeedConfigsFromFile(filename: String): List<FeedConfig> {
-            val file = object {}.javaClass.getResourceAsStream("feeds.json")
-                ?: throw Exception("Feed config file does not exist")
+            val file = File(filename)
 
             val jsonStr = file.bufferedReader().use { it.readText() }
             val json = Json { ignoreUnknownKeys = true }

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.chromasgaming"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -14,8 +14,8 @@ repositories {
 dependencies {
     implementation("com.prof18.rssparser:rssparser:6.0.3")
     implementation("io.ktor:ktor-client-core:2.3.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
     implementation("io.ktor:ktor-client-cio:2.3.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
 
     testImplementation(kotlin("test"))
 }
@@ -29,5 +29,5 @@ kotlin {
 }
 
 application {
-    mainClass.set("MainKt")
+    mainClass.set("com.chromasgaming.MainKt")
 }

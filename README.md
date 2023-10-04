@@ -1,3 +1,5 @@
+[![Release](https://github.com/ChromasIV/RSSOwlKt/actions/workflows/release.yml/badge.svg)](https://github.com/ChromasIV/RSSOwlKt/actions/workflows/release.yml)
+
 # RSSOwlKt
 RSSOwlKt is a Kotlin application that effortlessly routes updates from specified RSS feeds directly to your webhooks. Stay updated with the latest content from your favorite sources without missing a beat. With RSSOwlKt, turning RSS feed updates into webhook notifications is a breeze.
 

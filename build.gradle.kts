@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.chromasgaming"
-version = "1.0.0"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -16,6 +16,11 @@ dependencies {
     implementation("io.ktor:ktor-client-core:2.3.4")
     implementation("io.ktor:ktor-client-cio:2.3.4")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+
+    implementation("io.github.oshai:kotlin-logging-jvm:5.1.0")
+    implementation("org.slf4j:slf4j-simple:2.0.9")
+    implementation("org.slf4j:slf4j-api:2.0.9")
+
 
     testImplementation(kotlin("test"))
 }

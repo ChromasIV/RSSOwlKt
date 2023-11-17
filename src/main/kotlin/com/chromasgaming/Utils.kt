@@ -9,18 +9,21 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.File
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 
 class Utils {
     companion object {
 
-        suspend fun sendMessage(webhookUrl: String, message: String, name: String) {
-            val previousResponse = getPreviousResponse("$name.json")
+        suspend fun sendMessage(webhookUrl: String, message: String, name: String, db: Database) {
+            val previousResponse = getPreviousResponse(name, db, webhookUrl)
 
             if (previousResponse == message) {
                 return
             }
-
             // Send the message to the Discord webhook
 
             val client = HttpClient(CIO)
@@ -31,35 +34,26 @@ class Utils {
                 setBody(Json.encodeToString(Content(message)))
             }
 
-            storePreviousResponse(message, "$name.json")
+            storePreviousResponse(webhookUrl, message, name, db)
         }
 
-
-        fun readFeedConfigsFromFile(filename: String): List<FeedConfig> {
-            val file = File(filename)
-
-            val jsonStr = file.bufferedReader().use { it.readText() }
-            val json = Json { ignoreUnknownKeys = true }
-            return json.decodeFromString(jsonStr)
+        private fun storePreviousResponse(webhookUrl: String, message: String, filename: String, db: Database) {
+            transaction(db) {
+                FeedTable.update (  {FeedTable.discordWebhookUrl eq webhookUrl and(FeedTable.platformName eq filename) })  {
+                    it[previousResponse] = message
+                }
+            }
         }
 
-        private fun storePreviousResponse(previousResponse: String, filename: String) {
-            val json = Json { ignoreUnknownKeys = true }
-            val jsonStr = json.encodeToString(previousResponse)
-
-            val file = File(filename)
-            file.writeText(jsonStr)
-        }
-
-        private fun getPreviousResponse(filename: String): String {
-            val file = File(filename)
-            if (!file.exists()) {
-                return ""
+        private fun getPreviousResponse(filename: String, db: Database, webhookUrl: String): String {
+            var response = ""
+            transaction(db) {
+                response = FeedTable.select {
+                    (FeedTable.discordWebhookUrl eq webhookUrl and (FeedTable.platformName eq filename))
+                }.single()[FeedTable.previousResponse]
             }
 
-            val jsonStr = file.readText()
-            val json = Json { ignoreUnknownKeys = true }
-            return json.decodeFromString(jsonStr)
+            return response
         }
     }
 }

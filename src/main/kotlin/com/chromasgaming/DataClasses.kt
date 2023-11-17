@@ -10,5 +10,7 @@ class FeedConfig(
     val rssChannelUrl: String,
     val discordWebhookUrl: String,
     val name: String,
-    val delayMs: Long
+    val delayMs: Long,
+    val previousResponse: String?,
+    val discordId: String
 )

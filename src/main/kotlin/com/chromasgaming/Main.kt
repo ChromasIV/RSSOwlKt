@@ -65,10 +65,7 @@ fun main() {
                             try {
                                 while (true) {
                                     val rssChannel = rssParser.getRssChannel(feedConfig.rssChannelUrl)
-                                    val firstItem = rssChannel.items.firstOrNull()
-                                    val linkOrFallback = firstItem?.link ?: firstItem?.description ?: firstItem?.title
-
-                                    Utils.sendMessage(feedConfig.discordWebhookUrl, linkOrFallback!!, feedName, db)
+                                    Utils.sendMessage(feedConfig.discordWebhookUrl, rssChannel.items, feedName, db)
                                     delay(feedConfig.delayMs)
                                 }
                             } catch (e: Exception) {

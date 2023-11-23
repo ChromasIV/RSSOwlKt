@@ -1,6 +1,8 @@
 package com.chromasgaming
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import java.time.LocalDateTime
 
 @Serializable
 data class Content(val content: String)
@@ -11,6 +13,6 @@ class FeedConfig(
     val discordWebhookUrl: String,
     val name: String,
     val delayMs: Long,
-    val previousResponse: String?,
+    @Contextual val previousResponse: LocalDateTime?,
     val discordId: String
 )

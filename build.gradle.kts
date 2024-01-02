@@ -1,6 +1,8 @@
+val ktorVersion: String by project
+
 plugins {
-    kotlin("jvm") version "1.9.0"
-    kotlin("plugin.serialization") version "1.9.0"
+    kotlin("jvm") version "1.9.22"
+    kotlin("plugin.serialization") version "1.9.22"
     application
 }
 
@@ -12,10 +14,11 @@ repositories {
 }
 
 dependencies {
-    implementation("com.prof18.rssparser:rssparser:6.0.4")
+    implementation("com.prof18.rssparser:rssparser:6.0.6")
 
-    implementation("io.ktor:ktor-client-core:2.3.4")
-    implementation("io.ktor:ktor-client-cio:2.3.4")
+
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
 

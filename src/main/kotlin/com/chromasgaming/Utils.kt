@@ -22,31 +22,39 @@ class Utils {
 
         suspend fun sendMessage(webhookUrl: String, items: List<RssItem>, name: String, db: Database) {
             val previousResponse = getPreviousResponse(name, db, webhookUrl)
+            var eligibleItems: List<RssItem> = emptyList()
 
-            // Convert LocalDateTime to Date for comparison
-            val previousResponseDate = Date.from(previousResponse.atZone(ZoneId.systemDefault()).toInstant())
+            if(previousResponse == null) {
+                eligibleItems = listOf(items.first())
+            } else {
+                // Convert LocalDateTime to Date for comparison
+                val previousResponseDate = Date.from(previousResponse.atZone(ZoneId.systemDefault()).toInstant())
 
-            val eligibleItems = items.filter {
-                val itemTimestamp = parseDateWithMultipleFormats(it.pubDate ?: return@filter false)
-                itemTimestamp != null && itemTimestamp.after(previousResponseDate)
-            }.reversed()
-
+                eligibleItems = items.filter {
+                    val itemTimestamp = parseDateWithMultipleFormats(it.pubDate ?: return@filter false)
+                    itemTimestamp != null && itemTimestamp.after(previousResponseDate)
+                }.take(5).reversed()
+            }
 
             for (item in eligibleItems) {
                 sendMessageToWebhook(webhookUrl, item)
             }
-            val firstItem = items.firstOrNull()
-            val itemTimestamp = parseDateWithMultipleFormats(firstItem!!.pubDate ?: return)
-            storePreviousResponse(webhookUrl, itemTimestamp!!, name, db)
+
+            eligibleItems.maxByOrNull { it.pubDate!! }?.pubDate?.let { mostRecentDate ->
+                val itemTimestamp = parseDateWithMultipleFormats(mostRecentDate)
+                storePreviousResponse(webhookUrl, itemTimestamp!!, name, db)
+            }
         }
 
-        suspend fun sendMessageToWebhook(webhookUrl: String, item: RssItem) {
+        private suspend fun sendMessageToWebhook(webhookUrl: String, item: RssItem) {
+            //println(Json.encodeToString(Embeds(listOf(EmbedsObject(item.title!!, description = item.description ?: "No Description", url = item.link!!)))))
             // Code to send the message to the Discord webhook
             val client = HttpClient(CIO)
             client.request(webhookUrl) {
                 method = HttpMethod.Post
                 contentType(ContentType.Application.Json)
-                setBody(Json.encodeToString(Content(item.link ?: item.description ?: item.title ?: ""))) // Assuming item.description is the message you want to send
+                setBody(Json.encodeToString(Content(item.link ?: item.title ?: ""))) // Assuming item.description is the message you want to send
+                //setBody(Json.encodeToString(Embeds(listOf(EmbedsObject(item.title!!, description = item.description ?: "", url = item.link!!)))))
             }
         }
 
@@ -58,15 +66,15 @@ class Utils {
             }
         }
 
-        private fun getPreviousResponse(filename: String, db: Database, webhookUrl: String): LocalDateTime {
+        private fun getPreviousResponse(filename: String, db: Database, webhookUrl: String): LocalDateTime? {
             return transaction(db) {
                 FeedTable.select {
                     (FeedTable.discordWebhookUrl eq webhookUrl and (FeedTable.platformName eq filename))
-                }.singleOrNull()?.get(FeedTable.previousResponse) ?: LocalDateTime.now()
+                }.singleOrNull()?.get(FeedTable.previousResponse)
             }
         }
 
-        private fun parseDateWithMultipleFormats(dateString: String): Date? {
+        fun parseDateWithMultipleFormats(dateString: String): Date? {
             val dateFormats = listOf(
                 "yyyy-MM-dd'T'HH:mm:ss'Z'",
                 "yyyy-MM-dd'T'HH:mm:ssXXX",

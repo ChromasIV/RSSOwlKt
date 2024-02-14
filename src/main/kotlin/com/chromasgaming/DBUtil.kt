@@ -13,13 +13,9 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
-import java.text.SimpleDateFormat
-import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.*
 
-class NewUtils {
+class DBUtil {
     companion object {
 
         suspend fun getFeedItems(db: Database, feedId: Int, feedUrl: String) {

@@ -7,5 +7,6 @@
     <root level="trace">
         <appender-ref ref="STDOUT"/>
     </root>
-    <logger name="com.chromasgaming" level="INFO"/>
+    <logger name="com.chromasgaming" level="DEBUG"/>
+    <logger name="logging.level.Exposed" level="DEBUG" />
 </configuration>

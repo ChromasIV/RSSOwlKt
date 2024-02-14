@@ -1,21 +1,22 @@
 package com.chromasgaming
 
-import com.chromasgaming.NewUtils.Companion.getFeedItems
-import com.chromasgaming.NewUtils.Companion.sendMessageToWebhook
+import com.chromasgaming.DBUtil.Companion.sendMessageToWebhook
 import com.chromasgaming.database.DatabaseConnectionPool
 import com.prof18.rssparser.RssParser
-import com.prof18.rssparser.model.RssItem
 import com.zaxxer.hikari.HikariDataSource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.StdOutSqlLogger
+import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
@@ -24,10 +25,11 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.util.concurrent.ConcurrentHashMap
 
 private val logger = KotlinLogging.logger {}
+
+private const val isActive = true
 
 private val dataSource = HikariDataSource(
     DatabaseConnectionPool(
@@ -52,13 +54,100 @@ fun main() {
         val feedCoroutines = ConcurrentHashMap<String, Job>()
 
         launch {
-            while (true) {
+            while (isActive) {
 
-                val currentFeeds2 = transaction(db) {
+                transaction(db) {
+//                    addLogger(StdOutSqlLogger)
+                    val feedUrls = (UserSubscriptions innerJoin RssFeeds)
+                        .slice(RssFeeds.feedUrl)
+                        .selectAll()
+                        .groupBy(RssFeeds.feedUrl)
+                        .map { it[RssFeeds.feedUrl] }
+                        .toSet()
+
+                    val userSubFeeds = (UserSubscriptions innerJoin RssFeeds)
+                        .selectAll()
+                        .toList()
+
+                    //feedUrls.forEach { it -> println(it) }
+
+                    userSubFeeds.forEach { feed ->
+                        val job = launch(Dispatchers.IO) {
+                            transaction(db) {
+                                //addLogger(StdOutSqlLogger)
+                                val newItems = (UserSubscriptions innerJoin RssFeeds innerJoin FeedItems)
+                                    .select {
+                                        (UserSubscriptions.feedId eq feed[RssFeeds.id]) and
+                                                ((UserSubscriptions.lastChecked.isNull() and FeedItems.publicationDate.isNotNull()) or
+                                                        (FeedItems.publicationDate greater UserSubscriptions.lastChecked))
+                                    }
+
+                                newItems.forEach { row ->
+                                    //println(row[FeedItems.title])
+                                    transaction(db) {
+                                        //addLogger(StdOutSqlLogger)
+                                        val alreadySent =
+                                            UserFeedItems.select { (UserFeedItems.userId eq row[UserSubscriptions.userId]) and (UserFeedItems.feedItemId eq row[FeedItems.id]) }
+                                                .empty().not()
+
+                                        if (!alreadySent) {
+                                            //if (activeFeeds.add(feed[RssFeeds.feedUrl])) {
+                                            val job = launch(Dispatchers.IO) {
+                                                try {
+                                                    while (true) {
+                                                        //val rssChannel = rssParser.getRssChannel(feedConfig.rssChannelUrl)
+                                                        //Utils.sendMessage(item[UserSubscriptions.webhookUrl], rssChannel.items, feedUrl, db)
+                                                        sendMessageToWebhook(
+                                                            row[UserSubscriptions.webhookUrl],
+                                                            row[FeedItems.link],
+                                                            row[FeedItems.title]
+                                                        )
+                                                        delay(row[UserSubscriptions.delayInterval] * 1000L)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    logger.error { e.printStackTrace() }
+                                                } finally {
+                                                    //activeFeeds.remove(row[RssFeeds.feedUrl])
+                                                }
+                                            }
+                                            feedCoroutines[row[RssFeeds.feedUrl]] = job
+
+                                            UserFeedItems.insert {
+                                                it[userId] = row[UserSubscriptions.userId]
+                                                it[feedItemId] = row[FeedItems.id]
+                                                it[sentDate] = LocalDateTime.now()
+
+                                            }
+                                            //}
+                                        }
+                                    }
+                                }
+
+                                UserSubscriptions.update({ UserSubscriptions.subscriptionId eq feed[UserSubscriptions.subscriptionId] }) {
+                                    it[lastChecked] = LocalDateTime.now()
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                val newItems = (UserSubscriptions innerJoin RssFeeds innerJoin FeedItems)
+                    .select {
+                        (UserSubscriptions.feedId eq RssFeeds.id) and
+                                (RssFeeds.id eq FeedItems.feedId) and
+                                ((UserSubscriptions.lastChecked.isNull() and FeedItems.publicationDate.isNotNull()) or
+                                        (FeedItems.publicationDate greater UserSubscriptions.lastChecked))
+                    }
+
+                val currentFeeds = getCurrentFeeds(db)
+
+                /*val currentFeeds2 = transaction(db) {
                     RssFeeds.selectAll().map { row ->
                         launch {
                             getFeedItems(db, row[RssFeeds.id].value, row[RssFeeds.feedUrl])
                             transaction(db) {
+                                //addLogger(StdOutSqlLogger)
                                 UserSubscriptions.selectAll().forEach { subscription ->
                                     val userId = subscription[UserSubscriptions.userId]
                                     val feedId = subscription[UserSubscriptions.feedId]
@@ -74,6 +163,7 @@ fun main() {
 
                                     newItems.filter { it[FeedItems.feedId] == feedId }.forEach { item ->
                                         launch {
+                                            //println(item)
                                             val feedItemId = item[FeedItems.id].value
                                             val rssChannel = rssParser.getRssChannel(item[RssFeeds.feedUrl])
                                             transaction(db) {
@@ -120,7 +210,8 @@ fun main() {
                             }
                         }
                     }
-                }
+                }*/
+
 
 //                // Cancel coroutines for removed feeds
 //                activeFeeds.forEach { feedName ->
@@ -158,5 +249,13 @@ fun main() {
         // Wait for all the coroutines to finish.
 //        coroutines.forEach { it.join() }
         logger.info { "Application has completed." }
+    }
+}
+
+suspend fun getCurrentFeeds(db: Database): Set<String> {
+    return withContext(Dispatchers.IO) { // Use withContext for switching to IO dispatcher
+        transaction(db) {
+            RssFeeds.selectAll().map { it[RssFeeds.feedUrl] }.toSet() // Extracting feed URLs and converting to a Set
+        }
     }
 }
